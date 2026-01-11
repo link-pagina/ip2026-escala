@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { generateYearSchedule, MONTH_NAMES, getDayKey } from './utils';
-import { Period } from './types';
-import AssignmentSelector from './components/AssignmentSelector';
+import { generateYearSchedule, MONTH_NAMES, getDayKey } from './utils.ts';
+import { Period } from './types.ts';
+import AssignmentSelector from './components/AssignmentSelector.tsx';
 import { 
   PrinterIcon, 
   TrashIcon,
@@ -21,12 +21,21 @@ const App: React.FC = () => {
   // Store assignments as: [dateKey]: { [period]: { [slotIndex]: name } }
   const [assignments, setAssignments] = useState<Record<string, Record<string, Record<number, string>>>>(() => {
     const saved = localStorage.getItem('escala_2026_assignments_v2');
-    return saved ? JSON.parse(saved) : {};
+    try {
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error("Erro ao carregar escala salva:", e);
+      return {};
+    }
   });
 
   const [personList, setPersonList] = useState<string[]>(() => {
     const saved = localStorage.getItem('escala_2026_persons');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
 
   const schedule = useMemo(() => generateYearSchedule(2026), []);
@@ -38,18 +47,17 @@ const App: React.FC = () => {
       setIsLoadingNames(true);
       try {
         const response = await fetch(SHEET_CSV_URL);
+        if (!response.ok) throw new Error('Falha ao acessar planilha');
         const csvText = await response.text();
         
-        // Simple CSV parser: split by lines, take first column, remove quotes and empty lines
         const names = csvText
           .split(/\r?\n/)
           .map(line => {
             const firstColumn = line.split(',')[0];
             return firstColumn ? firstColumn.replace(/^"|"$/g, '').trim() : '';
           })
-          .filter(name => name.length > 0 && name.toLowerCase() !== 'nome'); // Filter header if exists
+          .filter(name => name.length > 0 && name.toLowerCase() !== 'nome');
 
-        // Merge with existing list to not lose manually added names, then sort
         setPersonList(prev => {
           const combined = Array.from(new Set([...prev, ...names]));
           return combined.sort((a, b) => a.localeCompare(b));
@@ -108,7 +116,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f0f4f8] pb-20">
-      {/* Header */}
       <header className="bg-white border-b sticky top-0 z-20 no-print shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -140,7 +147,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Month Navigation */}
         <div className="max-w-5xl mx-auto px-2 overflow-x-auto border-t">
           <nav className="flex space-x-1 py-3 px-2">
             {MONTH_NAMES.map((name, index) => (
@@ -159,7 +165,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-3xl mx-auto px-4 mt-8 space-y-8">
         <div className="flex items-center justify-between no-print mb-4 px-2">
            <button 
@@ -190,7 +195,6 @@ const App: React.FC = () => {
 
           return (
             <div key={dateKey} className="bg-white rounded-[40px] shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden print:break-inside-avoid">
-              {/* Day Header */}
               <div className={`${headerColor} px-8 py-4 text-center`}>
                 <h3 className="text-white text-lg font-black tracking-[0.2em] uppercase flex items-center justify-center space-x-3">
                   <span>{dayName}</span>
@@ -199,18 +203,15 @@ const App: React.FC = () => {
                 </h3>
               </div>
 
-              {/* Day Content */}
               <div className="px-6 py-6 space-y-6">
                 {day.periods.map((period, pIndex) => (
                   <div key={period} className={`flex items-start ${pIndex < day.periods.length - 1 ? 'border-b border-gray-50 pb-6' : ''}`}>
-                    {/* Period Label */}
                     <div className="w-20 pt-2 shrink-0">
                        <span className="text-[10px] font-black text-[#94a3b8] uppercase tracking-[0.15em] leading-none block border-r border-gray-100">
                          {period === Period.MORNING ? 'MANHÃ' : 'NOITE'}
                        </span>
                     </div>
 
-                    {/* Selector Slots */}
                     <div className="flex-1 grid grid-cols-2 gap-4 pl-6">
                       {[0, 1].map((slotIndex) => (
                         <AssignmentSelector
@@ -229,9 +230,8 @@ const App: React.FC = () => {
         })}
       </main>
 
-      {/* Print only Footer */}
       <footer className="hidden print:block fixed bottom-4 w-full text-center text-[10px] font-bold text-gray-300 uppercase tracking-widest">
-        Escala Ministerial 2026 - v2.0 Layout Visual
+        Escala Ministerial 2026 - v2.0
       </footer>
     </div>
   );
